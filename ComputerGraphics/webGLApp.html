@@ -137,7 +137,6 @@
 
 
             function handleLoadedModel(modelData){
-                alert("hola3");
                 modelVertexNormalBuffer = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexNormalBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexNormals), gl.STATIC_DRAW);
@@ -167,9 +166,7 @@
                 var request = new XMLHttpRequest();
                 request.open("GET", "Teapot.json");
                 request.onreadystatechange = function (){
-                    //alert("hola1");
                     if(request.readyState == 4){
-                        //alert("hola2");
                         handleLoadedModel(JSON.parse(request.responseText));
                     }
                 }
@@ -261,12 +258,13 @@
                 mat4.multiply(mvMatrix, mouseRotationMatrix);
 
                 mat4.scale(mvMatrix,[0.1, 0.1, 0.1]);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
-                sendMatricesToShader();
-                gl.drawElements(gl.TRIANGLES, modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
+                if(modelVertexPositionBuffer){
+                    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
+                    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
+                    sendMatricesToShader();
+                    gl.drawElements(gl.TRIANGLES, modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
+                }
             }
 
 
