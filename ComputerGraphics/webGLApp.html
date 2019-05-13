@@ -131,7 +131,8 @@
             
             var pressedKeys = {};
             var mouseDown = false;
-            
+            var lastMouseX = null;
+            var lastMouseY = null;
 
             function handleKeyDown(event){
                 pressedKeys[event.keyCode] = true;
@@ -148,15 +149,33 @@
                 {
                     console.log("Mouse down");
                 }
+
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+
             }
+
+            var mouseRotationMatrix = mat4.create();
+            mat4.identity(mouseRotationMatrix);
 
             function handleMouseMove(event){
                 if (!mouseDown) return;
 
-                if (event.button == 0)
-                {
-                    console.log("MouseMove");
-                }
+                var newX = event.clientX;
+                var newY = event.clientY;
+                var deltaX = newX - lastMouseX;
+                var deltaY = newY - lastMouseY;
+
+                var newRotationMartix = mat4.create();
+                mat4.identity(newRotationMartix);
+                mat4.rotate(newRotationMartix, (deltaX / 10) * (3.1415/180) , [0, 1, 0]);
+                mat4.rotate(newRotationMartix, (deltaY / 10) * (3.1415/180), [1, 0, 0]);
+
+                mat4.multiply(newRotationMartix, mouseRotationMatrix, mouseRotationMatrix);
+
+                lastMouseX = newX;
+                lastMouseY = newY;
+            
             }
 
             function handleMouseUp(event){
@@ -164,10 +183,11 @@
 
                 if(event.button == 0)
                 {
-
                     console.log("Mouse UP");
                 }
             }
+
+     
 
             function manageCamera() {
                               
@@ -191,7 +211,8 @@
                 mat4.identity(mvMatrix);
 
                 mat4.translate(mvMatrix, position);
-    
+
+                mat4.multiply(mvMatrix, mouseRotationMatrix);
                 gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
                 gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
                 sendMatricesToShader();
