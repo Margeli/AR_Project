@@ -24,6 +24,94 @@
                 gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
             }
         </script>
+
+        <script id="shader-gouraud-vs" type="x-shader/x-vertex">
+            attribute vec3 aVertexPosition;
+            attribute vec3 aVertexNormal;
+
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+            uniform mat3 uNMatrix;
+
+            uniform vec3 L;
+            uniform vec3 Ia;
+            uniform vec3 Ip;
+
+            uniform vec3 Ka;
+            uniform vec3 Kd;
+
+            varying vec3 shadedColor;
+
+            void main(void) {
+                gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+
+                vec3 N = uNMatrix * normalize(aVertexNormal);
+                float dotNL = max(dot(N, L), 0.0);
+                shadedColor = Ka * Ia + Kd * Ip * dotNL;
+
+            }
+        </script>
+
+        <script id="shader-gouraud-fs" type="x-shader/x-fragment">
+            precision mediump float;
+
+            varying vec3 shadedColor;
+
+            void main(void) {
+                gl_FragColor = vec4(shadedColor, 1.0);
+            }
+        </script>
+
+        <script id="shader-phong-vs" type="x-shader/x-vertex">
+            attribute vec3 aVertexPosition;
+            attribute vec3 aVertexNormal;
+
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+            uniform mat3 uNMatrix;
+
+            uniform vec3 uLightSourcePosition;
+
+            varying vec3 vertNormalEye;
+            varying vec4 vertPositionEye;
+            varying vec4 lightSourcePositionEye;
+
+            void main(void) {
+
+                vertPositionEye = uMVMatrix * vec4(aVertexPosition, 1.0);
+                gl_Position = uPMatrix * vertPositionEye;
+                vertNormalEye = uNMatrix * normalize(aVertexNormal);
+
+                lightSourcePositionEye = uMVMatrix * vec4(uLightSourcePosition, 1.0);        
+            }
+        </script>
+
+        <script id="shader-phong-fs" type="x-shader/x-fragment">
+            precision mediump float;
+
+            uniform vec3 Ia, Is, Id;
+            uniform vec3 Ka, Ks, Kd;
+            uniform float s;
+
+            varying vec3 vertNormalEye;
+            varying vec4 vertPositionEye;
+            varying vec4 lightSourcePositionEye;
+
+            void main(void) {
+
+                vec3 L = normalize(lightSourcePositionEye.xyz - vertPositionEye.xyz);
+                vec3 N = normalize(vertNormalEye);
+                float dotNL = max(dot(N, L), 0.0);
+
+                vec3 V = normalize(-vertPositionEye.xyz);
+                vec3 R = reflect(-L, N);
+                float dotRVs = pow(max(dot(R, V), 0.0), s);
+
+                vec3 shadedColor = Ka * Ia + Kd * Id * dotNL + Ks * Is * dotRVs;
+
+                gl_FragColor = vec4(shadedColor, 1.0);
+            }
+        </script>
         
         <script type="text/javascript">
 
@@ -79,8 +167,8 @@
             var shaderProgram;
 
             function initShaders() {
-                var fragmentShader = getShader("shader-fs");
-                var vertexShader = getShader("shader-vs");
+                var fragmentShader = getShader("shader-gouraud-fs");
+                var vertexShader = getShader("shader-gouraud-vs");
 
                 shaderProgram = gl.createProgram();
                 gl.attachShader(shaderProgram, vertexShader);
@@ -107,11 +195,39 @@
             var position = [0.0, 0.0, -10.0];
             var rotation = [100.0, 0.0, -100.0];
 
-            function sendMatricesToShader() {
-                gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
-                gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+            //--------------------------START SHADING--------------------------
+
+
+            function defineLightProperties(){
+
+                var lightingDirection = [0.0, 1.0, 0.5];
+                var normalized_L = vec3.create();
+                vec3.normalize(lightingDirection, normalized_L);
+                gl.uniform3fv(shaderProgram.L_Uniform, normalized_L);
+
+                gl.uniform3f(shaderProgram.Ia_Uniform, 0.3, 0.3, 0.3); 
+                gl.uniform3f(shaderProgram.Ip_Uniform, 0.5, 0.5, 0.5);
+
+                gl.uniform3f(shaderProgram.Ka_Uniform, 1.0, 0.3, 0.0);
+                gl.uniform3f(shaderProgram.Kd_Uniform, 1.0, 0.3, 0.0);
+
             }
 
+            function sendMatricesToShader() {
+
+                gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+                gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+                var normalMatrix = mat3.create();
+                mat4.toInverseMat3(mvMatrix, normalMatrix);
+                mat3.transpose(normalMatrix);
+                gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, normalMatrix);
+
+            }
+            
+
+         
+            //--------------------------END SHADING--------------------------
 
 
             var triangleVertexPositionBuffer;
@@ -173,6 +289,7 @@
                 request.send();
             }
             
+            //--------------------------START INPUT--------------------------
             
             var pressedKeys = {};
             var mouseDown = false;
@@ -233,7 +350,6 @@
             }
 
      
-
             function manageCamera() {
                               
                 if (pressedKeys[65]) position[0] += 0.1;
@@ -244,10 +360,14 @@
                 
                 if (pressedKeys[83])  position[1] += 0.1;
    
-
             }
 
+            //--------------------------END INPUT--------------------------
+
             function drawScene() {
+
+                defineLightProperties();
+
                 gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
