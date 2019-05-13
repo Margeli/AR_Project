@@ -128,6 +128,54 @@
                 triangleVertexPositionBuffer.itemSize = 3;
                 triangleVertexPositionBuffer.numItems = 3;
             }
+
+            
+            var modelVertexPositionBuffer;
+            var modelVertexNormalBuffer;
+            var modelVertexTextureCoordBuffer;
+            var modelVertexIndexBuffer;
+
+
+            function handleLoadedModel(modelData){
+                alert("hola3");
+                modelVertexNormalBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexNormalBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexNormals), gl.STATIC_DRAW);
+                modelVertexNormalBuffer.itemSize = 3;
+                modelVertexNormalBuffer.numItems = modelData.vertexNormals.length / 3;
+
+                modelVertexTextureCoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexTextureCoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexTextureCoords), gl.STATIC_DRAW);
+                modelVertexTextureCoordBuffer.itemSize = 3;
+                modelVertexTextureCoordBuffer.numItems = modelData.vertexTextureCoords.length / 2;
+
+                modelVertexPositionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexPositions), gl.STATIC_DRAW);
+                modelVertexPositionBuffer.itemSize = 3;
+                modelVertexPositionBuffer.numItems = modelData.vertexPositions.length / 3;
+
+                modelVertexIndexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(modelData.indices), gl.STATIC_DRAW);
+                modelVertexIndexBuffer.itemSize = 1;
+                modelVertexIndexBuffer.numItems = modelData.indices.length;
+            }
+
+            function loadModel(){
+                var request = new XMLHttpRequest();
+                request.open("GET", "Teapot.json");
+                request.onreadystatechange = function (){
+                    //alert("hola1");
+                    if(request.readyState == 4){
+                        //alert("hola2");
+                        handleLoadedModel(JSON.parse(request.responseText));
+                    }
+                }
+                request.send();
+            }
+            
             
             var pressedKeys = {};
             var mouseDown = false;
@@ -191,13 +239,13 @@
 
             function manageCamera() {
                               
-                if (pressedKeys[65]) position[0] -= 0.1;
+                if (pressedKeys[65]) position[0] += 0.1;
   
-                if (pressedKeys[68]) position[0] += 0.1;
+                if (pressedKeys[68]) position[0] -= 0.1;
 
-                if (pressedKeys[87])  position[1] += 0.1;
+                if (pressedKeys[87])  position[1] -= 0.1;
                 
-                if (pressedKeys[83])  position[1] -= 0.1;
+                if (pressedKeys[83])  position[1] += 0.1;
    
 
             }
@@ -209,14 +257,16 @@
                 mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
 
                 mat4.identity(mvMatrix);
-
                 mat4.translate(mvMatrix, position);
-
                 mat4.multiply(mvMatrix, mouseRotationMatrix);
-                gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
-                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                mat4.scale(mvMatrix,[0.1, 0.1, 0.1]);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
+                gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
                 sendMatricesToShader();
-                gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
+                gl.drawElements(gl.TRIANGLES, modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
             }
 
 
@@ -234,7 +284,7 @@
 
                 initGL(canvas);
                 initShaders();
-                loadSceneOnGPU();
+                loadModel();
 
                 gl.clearColor(0.0, 0.0, 0.0, 1.0);
                 gl.enable(gl.DEPTH_TEST);
