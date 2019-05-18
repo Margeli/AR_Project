@@ -259,44 +259,46 @@
             }
 
             
-            var modelVertexPositionBuffer;
-            var modelVertexNormalBuffer;
-            var modelVertexTextureCoordBuffer;
-            var modelVertexIndexBuffer;
-
-
-            function handleLoadedModel(modelData){
-                modelVertexNormalBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexNormalBuffer);
+            var modelsList = [];
+            function handleLoadedModel(modelData, _position, scale){
+                
+                model = {};
+                model.modelVertexNormalBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, model.modelVertexNormalBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexNormals), gl.STATIC_DRAW);
-                modelVertexNormalBuffer.itemSize = 3;
-                modelVertexNormalBuffer.numItems = modelData.vertexNormals.length / 3;
+                model.modelVertexNormalBuffer.itemSize = 3;
+                model.modelVertexNormalBuffer.numItems = modelData.vertexNormals.length / 3;
 
-                modelVertexTextureCoordBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexTextureCoordBuffer);
+                model.modelVertexTextureCoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, model.modelVertexTextureCoordBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexTextureCoords), gl.STATIC_DRAW);
-                modelVertexTextureCoordBuffer.itemSize = 3;
-                modelVertexTextureCoordBuffer.numItems = modelData.vertexTextureCoords.length / 2;
+                model.modelVertexTextureCoordBuffer.itemSize = 3;
+                model.modelVertexTextureCoordBuffer.numItems = modelData.vertexTextureCoords.length / 2;
 
-                modelVertexPositionBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
+                model.modelVertexPositionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, model.modelVertexPositionBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelData.vertexPositions), gl.STATIC_DRAW);
-                modelVertexPositionBuffer.itemSize = 3;
-                modelVertexPositionBuffer.numItems = modelData.vertexPositions.length / 3;
+                model.modelVertexPositionBuffer.itemSize = 3;
+                model.modelVertexPositionBuffer.numItems = modelData.vertexPositions.length / 3;
 
-                modelVertexIndexBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
+                model.modelVertexIndexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.modelVertexIndexBuffer);
                 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(modelData.indices), gl.STATIC_DRAW);
-                modelVertexIndexBuffer.itemSize = 1;
-                modelVertexIndexBuffer.numItems = modelData.indices.length;
+                model.modelVertexIndexBuffer.itemSize = 1;
+                model.modelVertexIndexBuffer.numItems = modelData.indices.length;
+                
+                model.mScale = scale;
+                model.mPos = _position;
+
+                modelsList.push(model);                
             }
 
-            function loadModel(){
+            function loadModel(filename, _position, scale){
                 var request = new XMLHttpRequest();
-                request.open("GET", "Teapot.json");
+                request.open("GET", filename);
                 request.onreadystatechange = function (){
                     if(request.readyState == 4){
-                        handleLoadedModel(JSON.parse(request.responseText));
+                        handleLoadedModel(JSON.parse(request.responseText), _position,  scale);
                     }
                 }
                 request.send();
@@ -386,22 +388,23 @@
 
                 mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
 
-                mat4.identity(mvMatrix);
-                mat4.translate(mvMatrix, position);
-                mat4.multiply(mvMatrix, mouseRotationMatrix);
+                for(i = 0; i<modelsList.length; i++){
 
-                mat4.scale(mvMatrix,[0.1, 0.1, 0.1]);
-                if(modelVertexPositionBuffer){
-                    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexPositionBuffer);
-                    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                    mat4.identity(mvMatrix);
+                    mat4.translate(mvMatrix, modelsList[i].mPos );
+                    mat4.multiply(mvMatrix, mouseRotationMatrix);
+                    mat4.scale(mvMatrix, modelsList[i].mScale);
 
-                    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexNormalBuffer);
-                    gl.vertexAttribPointer(shaderProgram.normalPositionAttribute, modelVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                    gl.bindBuffer(gl.ARRAY_BUFFER, modelsList[i].modelVertexPositionBuffer);
+                    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, modelsList[i].modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, modelsList[i].modelVertexNormalBuffer);
+                    gl.vertexAttribPointer(shaderProgram.normalPositionAttribute, modelsList[i].modelVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
                     
-                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelVertexIndexBuffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelsList[i].modelVertexIndexBuffer);
                     sendMatricesToShader();
-                    gl.drawElements(gl.TRIANGLES, modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
-                }
+                    gl.drawElements(gl.TRIANGLES, modelsList[i].modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
+                }               
             }
 
 
@@ -419,7 +422,8 @@
 
                 initGL(canvas);
                 initShaders();
-                loadModel();
+                loadModel("Teapot.json",[position[0]-2, position[1], position[2]], [0.1, 0.1, 0.1] );
+                loadModel("Laptop.json", [position[0]+2, position[1], position[2]], [2.0,2.0,2.0] );
 
                 gl.clearColor(0.0, 0.0, 0.0, 1.0);
                 gl.enable(gl.DEPTH_TEST);
