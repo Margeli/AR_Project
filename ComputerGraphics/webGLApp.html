@@ -29,11 +29,11 @@
         <script id="camera-vs" type="x-shader/x-vertex">
             attribute vec3 aVertexPosition;
 
-            uniform mat4 MVMatrix;
-            uniform mat4 PMatrix;
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
 
             void main(void) {
-                gl_Position = PMatrix * MVMatrix * vec4(aVertexPosition, 1.0);
+                gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
             }
         </script>
         
@@ -231,6 +231,7 @@
                 shaderProgram.Kd_Uniform = gl.getUniformLocation(shaderProgram, "Kd");
                 
 
+
                 var camerafs = getShader("camera-fs");
                 var cameravs = getShader("camera-vs");
 
@@ -240,12 +241,14 @@
 
                 gl.linkProgram(lightProgram);
 
+                gl.useProgram(lightProgram);
+
                 lightProgram.vertexPositionAttribute = gl.getAttribLocation(lightProgram, "aVertexPosition");
                 gl.enableVertexAttribArray(lightProgram.vertexPositionAttribute);
 
-                lightProgram.pMatrixUniform = gl.getUniformLocation(lightProgram, "PMatrix");
-                lightProgram.mvMatrixUniform = gl.getUniformLocation(lightProgram, "MVMatrix");
-
+                lightProgram.pMatrixUniform = gl.getUniformLocation(lightProgram, "uPMatrix");
+                lightProgram.mvMatrixUniform = gl.getUniformLocation(lightProgram, "uMVMatrix");
+                
             }
 
 
@@ -286,6 +289,11 @@
                 mat3.transpose(normalMatrix);
                 gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, normalMatrix);
 
+            }
+
+            function sendMatricesToLightShader(){
+                gl.uniformMatrix4fv(lightProgram.pMatrixUniform, false, pMatrix);
+                gl.uniformMatrix4fv(lightProgram.mvMatrixUniform, false, mvMatrix);
             }
             
 
@@ -392,6 +400,7 @@
                 gl.bindBuffer(gl.FRAMEBUFFER, null);
             }
 
+
             function drawSceneFromLight()
             {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, rttFramebuffer);
@@ -401,10 +410,31 @@
 
 
                 gl.useProgram(lightProgram);
-                //gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                gl.enableVertexAttribArray(lightProgram.vertexPositionAttribute);
+                //gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0)
 
-                //RENDER STUFF
+                //RENDER STUFF           
+
+                mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+
+                for(i = 0; i<modelsList.length; i++){
+
+                    mat4.identity(mvMatrix);
+                    mat4.multiply(mvMatrix, mouseRotationMatrix);
+                    
+                    mat4.translate(mvMatrix, position );
+                    mat4.translate(mvMatrix, modelsList[i].mPos );
+                    mat4.scale(mvMatrix, modelsList[i].mScale);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, modelsList[i].modelVertexPositionBuffer);
+                    gl.vertexAttribPointer(lightProgram.vertexPositionAttribute, modelsList[i].modelVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                    //gl.bindBuffer(gl.ARRAY_BUFFER, modelsList[i].modelVertexNormalBuffer);
+                    //gl.vertexAttribPointer(shaderProgram.normalPositionAttribute, modelsList[i].modelVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                    
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelsList[i].modelVertexIndexBuffer);
+                    sendMatricesToLightShader();
+                    gl.drawElements(gl.TRIANGLES, modelsList[i].modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
+                } 
 
                 //END RENDER STUFF
                 gl.disableVertexAttribArray(lightProgram.vertexPositionAttribute);
@@ -508,10 +538,14 @@
             
             function drawScene() {
                 
+                gl.useProgram(shaderProgram);
+                
                 defineLightProperties();
 
                 gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
 
                 mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
 
@@ -535,7 +569,7 @@
                     gl.drawElements(gl.TRIANGLES, modelsList[i].modelVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT,0);
                 } 
 
-                drawPlane();              
+                //drawPlane();              
             }
 
 
@@ -553,7 +587,7 @@
                 canvas.height = window.innerHeight;
 
                 initGL(canvas);
-                //initShaders();
+                initShaders();
                 loadModel("Teapot.json",[position[0]-2, position[1], position[2]], [0.1, 0.1, 0.1] );
                 loadModel("Laptop.json", [position[0]+2, position[1], position[2]], [2.0,2.0,2.0] );
                 
@@ -569,7 +603,7 @@
                 document.onmouseup = handleMouseUp;
                 document.onmousemove = handleMouseMove;
                 
-                loadSceneOnGPU();
+                //loadSceneOnGPU();
                 renderingLoop();
  
         
